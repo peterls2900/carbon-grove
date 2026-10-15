@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Carbon Grove: the board game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2ea; --surface:#fbfcf8; --ink:#18261c; --muted:#56655a; --line:#cfd8cb;
+  --canopy:#2e6b45; --canopy-soft:#d7e6d6; --cherry:#b8323a; --sky:#2f6690; --ochre:#a97c12; --soil:#7a5634;
+  --bad:#a52a2a; --good:#2e6b45; --felt:#dfe8d9;
+  --p0:#c0392b; --p1:#2f6690; --p2:#a8770b; --p3:#7d4fa8;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111a14; --surface:#18231b; --ink:#e4ece3; --muted:#9db0a1; --line:#2c3a30;
+    --canopy:#7fc795; --canopy-soft:#203328; --cherry:#ee7b82; --sky:#86b7e0; --ochre:#e0b950; --soil:#c99c6e;
+    --bad:#f08a8a; --good:#7fc795; --felt:#1b2a1f;
+    --p0:#f08a8a; --p1:#86b7e0; --p2:#e0b950; --p3:#c49be8; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111a14; --surface:#18231b; --ink:#e4ece3; --muted:#9db0a1; --line:#2c3a30;
+  --canopy:#7fc795; --canopy-soft:#203328; --cherry:#ee7b82; --sky:#86b7e0; --ochre:#e0b950; --soil:#c99c6e;
+  --bad:#f08a8a; --good:#7fc795; --felt:#1b2a1f;
+  --p0:#f08a8a; --p1:#86b7e0; --p2:#e0b950; --p3:#c49be8; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;line-height:1.15;margin:0}
+p{margin:.4em 0}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 14px 48px;overflow-x:hidden}
+header.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
+header.top h1{font-size:clamp(28px,4.4vw,42px);font-weight:800;letter-spacing:-.02em}
+header.top h1 span{font-weight:500;color:var(--muted);font-size:.5em;letter-spacing:0}
+header.top p{margin:4px 0 0;color:var(--muted);max-width:64ch}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.bad{color:var(--bad)} .good{color:var(--good)}
+
+button{font:inherit;font-weight:700;border-radius:10px;padding:9px 14px;border:1.5px solid var(--canopy);background:transparent;color:var(--canopy);cursor:pointer}
+button.primary{background:var(--canopy);color:var(--surface)}
+button[aria-pressed="true"]{background:var(--canopy-soft)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--canopy)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.stack{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel h2{font-size:20px;margin-bottom:6px}
+
+/* Year track: the board's path */
+.track{display:flex;gap:4px;overflow-x:auto;padding:10px 4px 14px;margin-bottom:12px;background:var(--felt);border-radius:999px;border:1px solid var(--line)}
+.space{flex:1 0 34px;min-width:34px;text-align:center;font-size:11px;color:var(--muted)}
+.space .dot{width:28px;height:28px;margin:0 auto 2px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:700;font-size:12px;color:var(--muted)}
+.space.cert .dot{border-color:var(--sky);border-width:3px}
+.space.past .dot{background:var(--canopy-soft)}
+.space.now .dot{background:var(--canopy);border-color:var(--canopy);color:var(--surface);transform:scale(1.15)}
+
+.table{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);grid-template-areas:"macro board" "market board";gap:14px;align-items:start}
+.a-macro{grid-area:macro}.a-market{grid-area:market}.a-board{grid-area:board}
+@media (max-width:900px){.table{grid-template-columns:minmax(0,1fr);grid-template-areas:"macro" "board" "market"}}
+
+/* Cards */
+.card{border-radius:14px;padding:14px 16px;border:2px solid var(--line);background:var(--surface);position:relative}
+.card .kind{font-size:13px;color:var(--muted)}
+.card h3{font-size:20px;margin:2px 0 4px}
+.card.world{background:linear-gradient(160deg,var(--canopy-soft),var(--surface) 70%);border-color:var(--canopy)}
+.card.world.b{border-color:var(--cherry)} .card.world.g{border-color:var(--canopy)} .card.world.n{border-color:var(--ochre)}
+.card.farm{border-style:solid;border-color:var(--soil);background:linear-gradient(160deg,color-mix(in srgb,var(--soil) 14%,var(--surface)),var(--surface) 70%)}
+.card.reveal{animation:flip .45s ease-out}
+@keyframes flip{from{transform:rotateY(80deg);opacity:.2}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.card.reveal{animation:none}.space.now .dot{transform:none}}
+
+.contract{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px}
+.contract .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.contract b.price{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:18px}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1.5px solid currentColor;white-space:nowrap}
+.chip.insetting{color:var(--canopy)} .chip.offset{color:var(--muted)} .chip.report{color:var(--sky)} .chip.sdg{color:var(--ochre)}
+.why{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* Player board */
+.board{border-top:6px solid var(--pc)}
+.board-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.token{width:18px;height:18px;border-radius:50%;background:var(--pc);display:inline-block;flex:none;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18)}
+.plots{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,.8fr);gap:8px;align-items:center;margin:12px 0}
+@media (max-width:620px){.plots{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.plots .eq{display:none}.netbox{grid-column:1 / -1}}
+.plot{background:var(--felt);border-radius:12px;padding:8px;border:1px solid var(--line)}
+.plot h3{font-size:13px;font-weight:700;font-family:"Atkinson Hyperlegible",system-ui,sans-serif;color:var(--muted);min-height:2.4em}
+.cells{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;align-items:end;min-height:92px;border-bottom:5px solid var(--soil);padding-bottom:2px}
+.cells span{text-align:center;line-height:1}
+.pnum{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:18px;margin-top:4px}
+.op{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:28px;font-weight:800;color:var(--muted)}
+.netbox{border:2px solid var(--canopy);border-radius:12px;padding:10px;text-align:center}
+.netbox .v{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:26px;color:var(--canopy)}
+.netbox .k{font-size:13px;color:var(--muted)}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:6px}
+.tok{border:1px solid var(--line);border-radius:10px;padding:6px 9px}
+.tok .v{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;font-size:18px}
+.tok .k{font-size:12px;color:var(--muted)}
+.tok.per{border-style:dashed} .tok.ver .v{color:var(--sky)} .tok.buf .v{color:var(--ochre)} .tok.ret .v{color:var(--cherry)}
+svg.mini{width:100%;height:auto;display:block;margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:16px;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.controls{margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.controls h3{font-size:18px;margin-bottom:4px}
+.flash{background:color-mix(in srgb,var(--cherry) 12%,var(--surface));border-left:4px solid var(--cherry);padding:8px 10px;border-radius:6px;margin-bottom:8px}
+.report{background:color-mix(in srgb,var(--sky) 10%,var(--surface));border-left:4px solid var(--sky);padding:8px 10px;border-radius:6px;margin:8px 0}
+.calc{background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:15px}
+.calc div{display:flex;justify-content:space-between;gap:12px}
+.designs{display:grid;gap:8px;margin:8px 0}
+.design{text-align:left;font-weight:400;color:var(--ink);border:1.5px solid var(--line);padding:10px 12px}
+.design b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:16px}
+.design[aria-pressed="true"]{border-color:var(--canopy)}
+.toggle-btn{text-align:left;font-weight:400;color:var(--ink);border-color:var(--line)}
+.toggle-btn b{color:var(--canopy)}
+.toggle-btn[aria-pressed="true"]{border-color:var(--canopy)}
+
+/* Players strip */
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;border-left:6px solid var(--pc)}
+.pcard.active{outline:2px solid var(--pc)}
+.pcard .nm{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pcard .nm b{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:17px}
+.pcard .vp{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:22px}
+.pcard dl{display:grid;grid-template-columns:1fr auto;gap:0 10px;margin:4px 0 0;font-size:13px}
+.pcard dt{color:var(--muted)} .pcard dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+
+.log{max-height:280px;overflow:auto;font-size:14px}
+.log div{padding:6px 0;border-bottom:1px solid var(--line)}
+.log .y{font-weight:700;color:var(--muted);margin-right:6px}
+.log .lesson{background:var(--canopy-soft);padding:7px 9px;border-radius:8px;border:none;margin:3px 0}
+
+.lobby{max-width:640px;margin:10px auto}
+.lobby .names{display:grid;gap:8px;margin-top:10px}
+.lobby .names label{display:flex;gap:10px;align-items:center}
+.lobby .names input{flex:1;min-width:0}
+
+.pass{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(6px)}
+.pass[hidden]{display:none}
+.pass .box{background:var(--surface);border-radius:18px;padding:26px;max-width:420px;width:100%;text-align:center;border-top:10px solid var(--pc);box-shadow:0 10px 40px rgba(0,0,0,.18)}
+.pass h2{font-size:28px;margin:6px 0}
+
+details.learn summary{cursor:pointer;font-weight:700;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:18px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:10px;font-size:15px}
+.rules h3{font-size:16px;margin-top:6px}
+.rules ul{padding-left:18px;margin:4px 0}
+table.final{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+table.final td,table.final th{padding:6px;border-bottom:1px solid var(--line);text-align:right}
+table.final td:first-child,table.final th:first-child{text-align:left}
+table.final th{color:var(--muted);font-weight:400}
+.finalwrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Carbon Grove <span>the board game</span></h1>
+      <p>2–4 players each run a Gold Standard agroforestry project on a smallholder coffee farm. Every year brings world events and farm events. Only the difference between your project and the baseline earns credits.</p>
+    </div>
+    <button data-a="newGame">New game</button>
+  </header>
+  <main id="app"><section class="panel"><h2>The game hasn't started</h2><p>This page needs JavaScript. File previews on phones (Files, Mail, Messages) only show it as a picture. Open it in a browser instead.</p></section></main>
+  <section class="panel" style="margin-top:14px">
+    <details class="learn">
+      <summary>Rules and what the game teaches</summary>
+      <div class="rules">
+        <div>
+          <h3>A round is one year</h3>
+          <ul>
+            <li>A world card is drawn: markets, regulation, climate. It affects every player.</li>
+            <li>Each player in turn chooses this year's spending, then draws a farm card (fire, drought, a farmer leaving, leakage…).</li>
+            <li>The trees grow. In years 5, 10, 15 and 20 a Performance Certification follows.</li>
+            <li>Players can sign buyer contracts on their turn by retiring GS VERs. First come, first served. Turn order rotates every year.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>The baseline</h3>
+          <p>Next to each project farm sits its baseline: the same farm where nothing is done. Credits are based on net removals = project stock − baseline stock − leakage. If the baseline would have regrown anyway (for example, after a coffee price crash leads farmers to abandon plots), your additionality shrinks. In the game the baseline moves every year, like a control plot. Many methodologies fix it at the start instead.</p>
+        </div>
+        <div>
+          <h3>Gold Standard rules used</h3>
+          <ul>
+            <li>PERs (ex-ante) for up to 5 years of modelled net removals, at the start and after each Performance Certification without a shortfall.</li>
+            <li>20% of all PERs and GS VERs go to the Compliance Buffer.</li>
+            <li>Verification converts PERs into GS VERs first; any surplus becomes new GS VERs.</li>
+            <li>Units issued must not exceed net removals. Otherwise it's a shortfall: no new issuance until fixed. Not fixed within 5 years means a non-conformity.</li>
+            <li>Only GS VERs can be retired. PERs can be transferred but not retired.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Victory points</h3>
+          <ul>
+            <li>1 VP per $2,000 cash (negative cash costs points)</li>
+            <li>1 VP per 50 t retired for buyers</li>
+            <li>1 VP per 100 t net removals still standing at the end</li>
+            <li>1 VP per 2 years of farmer programme</li>
+            <li>−3 VP per shortfall, −10 VP for a non-conformity, −1 VP per 50 PERs never converted</li>
+          </ul>
+          <p class="small muted">Simplified teaching model. Prices, growth, events and the world cards are invented, and the buffer-rate change card is fictional.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>
+<div id="pass" class="pass" hidden></div>
+
+<script>
+window.addEventListener('error',function(e){var el=document.getElementById('app');if(el){var d=document.createElement('p');d.className='flash';d.textContent='The game hit an error: '+(e.message||'unknown')+'. Please send a screenshot of this.';el.prepend(d);}});
+</script>
+<script>
+(function(){
+"use strict";
+const AREA=20, EX0=15*AREA, REGEN=0.4*AREA, PLANT_COST=8000, MAINT_COST=300, FARMER_COST=500,
+      FIREBREAK_COST=1500, CERT_FEE=1500, PER_PRICE=16, EXT_PRICE=30, REPLANT_COST=2000;
+const DESIGNS={
+  inga:{name:'Fast shade: Inga with coffee',short:'Inga shade',A:120,k:0.18,c:1.5,desc:'Fast-growing nitrogen fixers. Quick carbon, but a single-species canopy suffers more from pests and drought.'},
+  mixed:{name:'Native timber mix',short:'Timber mix',A:200,k:0.08,c:1.8,desc:'Diverse native species. Slow start, biggest long-term carbon store.'},
+  fruit:{name:'Fruit and shade: avocado, banana, Inga',short:'Fruit & shade',A:140,k:0.12,c:1.6,desc:'Middle ground. Fruit income keeps farmers engaged.'}
+};
+const CTYPES={
+  insetting:{label:'Insetting',prem:2,purpose:'Scope 3 insetting claim for coffee sourced from these farms',buyers:['Nordic Roast','Hygge Beans','Aarhus Coffee Co.','Fika Roasters']},
+  offset:{label:'Offsetting',prem:0,purpose:'Compensating unavoidable emissions',buyers:['Copenhagen Café Group','Fjord Foods','Baltic Logistics','Malmö Bakery']},
+  report:{label:'Reporting',prem:-1,purpose:'Removals reported in its climate report',buyers:['Øresund Bank','Scandi Retail','North Sea Shipping']},
+  sdg:{label:'Premium + SDG',prem:6,purpose:'Removals with proven farmer benefits',req:'farmer3',buyers:['Fair Cup Foundation','Green Brew Co-op']}
+};
+const $=s=>document.querySelector(s);
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const money=n=>(n<0?'−$':'$')+fmt(Math.abs(n));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=f=>Math.round(f*100)+'%';
+
+/* ---------- World cards ---------- */
+const MACROS=[
+  {id:'calm1',k:'n',t:'Steady year',x:'Nothing unusual happens on the carbon or coffee markets.'},
+  {id:'calm2',k:'n',t:'Steady year',x:'Nothing unusual happens on the carbon or coffee markets.'},
+  {id:'calm3',k:'n',t:'Steady year',x:'Nothing unusual happens on the carbon or coffee markets.'},
+  {id:'elnino',k:'b',t:'El Niño',x:'Drought risk is much higher on every farm this year.',f:()=>{G.mods.drought=3;}},
+  {id:'fireseason',k:'b',t:'Regional fire season',x:'Fire risk is much higher on every farm this year. Fire breaks help.',f:()=>{G.mods.fire=3;}},
+  {id:'rains',k:'g',t:'Good rains across the region',x:'+10% tree growth on every farm this year.',f:()=>{G.mods.growth=1.1;}},
+  {id:'rally',k:'g',t:'Carbon prices rally',x:'New contracts pay $4/t more, and the broker price rises too.',f:()=>{G.price+=4;}},
+  {id:'slump',k:'b',t:'Carbon prices slump',x:'New contracts pay $4/t less, and the broker price falls too.',f:()=>{G.price=Math.max(14,G.price-4);}},
+  {id:'claims',once:1,k:'b',t:'Green claims rules tighten',x:'Generic “carbon neutral” offset claims come under legal pressure. Offsetting buyers leave the market for good. Insetting and reporting buyers stay.',f:()=>{G.noOffset=true;G.contracts=G.contracts.filter(c=>c.type!=='offset');}},
+  {id:'inset',k:'g',t:'Insetting demand surges',x:'Roasters set Scope 3 FLAG targets. Two new insetting contracts arrive on the market.',f:()=>{addContract('insetting');addContract('insetting');}},
+  {id:'expose',k:'b',t:'Media exposé on over-credited projects',x:'Buyers avoid any project that has ever had a performance shortfall. Those players can’t sign contracts this year.',f:()=>{G.mods.expose=true;}},
+  {id:'rates',k:'b',t:'Interest rates rise',x:'Debt costs 14% this year instead of 8%.',f:()=>{G.mods.interest=0.14;}},
+  {id:'grant',k:'g',t:'Donor grant for farmer programmes',x:'Every player who has run a farmer programme receives $2,000.',f:()=>{G.players.forEach(p=>{if(p.farmerYears>0)p.cash+=2000;});}},
+  {id:'boom',k:'n',t:'Coffee price boom',x:'In the baseline, farmers would clear shade trees for sun coffee: baseline stock falls, so your additionality rises. On project farms without a farmer programme this year, farmers thin 5% of the trees.',f:()=>{G.mods.regenAdj=-0.8*AREA;G.mods.boom=true;}},
+  {id:'crash',k:'b',t:'Coffee price crash',x:'In the baseline, farmers would abandon plots and the land would regrow: baseline stock rises, so your additionality falls. Maintenance costs double this year.',f:()=>{G.mods.regenAdj=1.2*AREA;G.mods.maintMult=2;}},
+  {id:'buffer',once:1,k:'b',t:'Standard update (fictional)',x:'The Compliance Buffer contribution rises from 20% to 25% for all future PERs and GS VERs.',f:()=>{G.bufferRate=0.25;}},
+  {id:'sat',k:'g',t:'Satellite monitoring approved',x:'Remote sensing cuts verification costs. Every player’s next Performance Certification fee is halved.',f:()=>{G.players.forEach(p=>p.certDisc=true);}},
+  {id:'levy',k:'b',t:'Host country carbon levy',x:'The government takes $3/t on every contract signed this year.',f:()=>{G.mods.levy=3;}}
+];
+
+/* ---------- Farm cards ---------- */
+function hit(p,fp,fb){p.T*=1-fp;p.E*=1-fp;p.B*=1-fb;}
+const FIRE={id:'fire',t:'Fire!',run:p=>{if(p.firebreak){hit(p,0.08,0.10);return 'A fire reached your plots, but the fire breaks held. The project lost 8% of its carbon; the baseline farm lost 10%.';}
+  hit(p,0.25,0.10);return 'A fire burned through your plots. The project lost 25% of its carbon; the baseline farm, with fewer trees, lost 10%.';}};
+const DROUGHT={id:'drought',t:'Drought',run:p=>{const f=p.maint?0.04:0.08;hit(p,f,0.08);return `Dry season failed. The project lost ${pct(f)}${p.maint?' (maintenance helped)':''}; the baseline lost 8%.`;}};
+const MICROS=[
+  ...Array.from({length:7},()=>({id:'quiet',t:'Quiet year',run:()=> 'Nothing unusual happens on your farm.'})),
+  FIRE, DROUGHT, DROUGHT,
+  {id:'pests',t:'Pests in the shade trees',run:p=>{const f=p.maint?0.02:0.04;p.T*=1-f;return `Borers attacked the shade trees: −${pct(f)} of project trees${p.maint?' (pruning limited the damage)':''}.`;}},
+  {id:'pests',t:'Pests in the shade trees',run:p=>{const f=p.maint?0.02:0.04;p.T*=1-f;return `Borers attacked the shade trees: −${pct(f)} of project trees${p.maint?' (pruning limited the damage)':''}.`;}},
+  {id:'rain',t:'Good rains on your farm',run:p=>{p.rain+=0.1;return 'Your trees will grow 10% more this year.';}},
+  {id:'rain',t:'Good rains on your farm',run:p=>{p.rain+=0.1;return 'Your trees will grow 10% more this year.';}},
+  {id:'dropout',t:'A farmer wants to leave',run:p=>{if(p.farmer)return 'A farmer considered leaving, but the farmer programme payments kept them in.';
+    p.areaF*=0.95;p.T*=0.95;return 'A farmer left the project and cut their trees: −5% of project trees and of future growth.';}},
+  {id:'cattle',t:'Cattle break in',run:p=>{if(p.maint)return 'Cattle broke through a fence, but maintained fences were repaired fast. No damage.';
+    const f=G.year<=5?0.06:0.03;p.T*=1-f;return `Cattle trampled young trees: −${pct(f)} of project trees.`;}},
+  {id:'coop',t:'Co-op replanting day',run:p=>{p.rain+=0.05;return 'Farmers filled gaps together: +5% growth this year.';}},
+  {id:'theft',t:'Timber theft',run:p=>{if(p.farmer)return 'Someone tried to cut timber, but the community, engaged through the farmer programme, stopped it.';
+    p.T*=0.96;return 'Trees were cut and sold as timber: −4% of project trees.';}},
+  {id:'storm',t:'Storm',run:p=>{p.T*=0.94;p.E*=0.94;p.B*=0.97;return 'A storm broke branches and toppled trees: the project lost 6%, the baseline 3%.';}},
+  {id:'leak',t:'Leakage',run:p=>{if(p.farmer)return 'A family needed more land for maize. The farmer programme helped them grow more on existing fields instead of clearing forest. No leakage.';
+    p.leak+=15;return 'A family moved its maize field into forest at the farm edge because shade trees now cover their old plot. 15 t CO₂e of leakage is deducted from your net removals.';}},
+  {id:'askper',t:'A buyer wants to retire PERs',choice:true,run:p=>p.perOut>0?'One of your forward buyers wants to retire their PERs today, so they can call this year’s coffee “carbon neutral”.':'A buyer asks about retiring planned credits. You have no PERs with buyers, so nothing to discuss.'}
+];
+
+/* ---------- State ---------- */
+let G={phase:'lobby',nPlayers:2,len:15,names:['Player 1','Player 2','Player 3','Player 4']};
+function baseMods(){return {drought:1,fire:1,growth:1,interest:0.08,maintMult:1,levy:0,expose:false,regenAdj:0,boom:false};}
+function newPlayer(i,name){return {i,name,design:null,E:EX0,T:0,B:EX0,leak:0,areaF:1,cash:0,C:0,perOut:0,perBuf:0,bufVER:0,avail:0,
+  retired:0,sold:0,delivered:0,perEver:0,short:0,shortSince:null,shortCount:0,nonconf:false,boost:0,firebreak:false,maint:true,farmer:false,
+  farmerYears:0,rain:0,vpAdj:0,certDisc:false,hist:[{y:0,N:0,U:0}]};}
+const cp=()=>G.players[G.cur];
+const net=p=>p.E+p.T-p.B-p.leak;
+const units=p=>p.C+p.perOut+p.perBuf;
+function model(p,t){const d=DESIGNS[p.design];return t<=0?0:AREA*d.A*Math.pow(1-Math.exp(-d.k*t),d.c)*p.areaF;}
+function netModel(p,t){return model(p,t)-REGEN*t;}
+function log(i,y,text,kind=''){G.log.unshift({i,y,text,kind});}
+
+function addContract(type){
+  if(!type){const pool=['insetting','insetting','report','sdg'];if(!G.noOffset)pool.push('offset','offset');type=pick(pool);}
+  const c=CTYPES[type];
+  G.contracts.push({id:G.cid++,type,buyer:pick(c.buyers),purpose:c.purpose,qty:Math.round(rnd(6,25))*10,price:G.price+c.prem+Math.round(rnd(-1,2)),req:c.req||null});
+  while(G.contracts.length>5)G.contracts.shift();
+}
+function drawMacro(){
+  if(!G.macroDeck.length)G.macroDeck=shuffle(MACROS.filter(m=>!G.used[m.id]));
+  const m=G.macroDeck.pop();if(m.once)G.used[m.id]=1;
+  G.macro=m;if(m.f)m.f();
+  log(null,G.year,`World card: ${m.t}. ${m.x}`);
+}
+function drawMicro(){
+  if(!G.microDeck.length)G.microDeck=shuffle(MICROS.slice());
+  let c=G.microDeck.pop();
+  if(c.id==='quiet'){
+    if(Math.random()<(G.mods.drought-1)*0.2)c=DROUGHT;
+    else if(Math.random()<(G.mods.fire-1)*0.12)c=FIRE;
+  }
+  return c;
+}
+
+/* ---------- Actions ---------- */
+const A={};
+A.newGame=()=>{G={phase:'lobby',nPlayers:G.nPlayers||2,len:G.len||15,names:G.names||['Player 1','Player 2','Player 3','Player 4']};render();};
+A.setN=v=>{G.nPlayers=+v;render();};
+A.setLen=v=>{G.len=+v;render();};
+A.setName=(i,val)=>{G.names[+i]=val;};
+A.startGame=()=>{
+  const n=G.nPlayers,len=G.len,allNames=G.names.slice(),names=Array.from({length:n},(_,i)=>(String(allNames[i]||'').trim().slice(0,18))||`Player ${i+1}`);
+  G={phase:'setup',n,len,end:len,names:[0,1,2,3].map(i=>names[i]||allNames[i]||`Player ${i+1}`),players:names.map((nm,i)=>newPlayer(i,nm)),year:0,cur:0,step:'design',pass:true,
+     price:28,bufferRate:0.2,noOffset:false,contracts:[],cid:1,macro:null,macroDeck:[],microDeck:[],used:{},mods:baseMods(),
+     order:[],oi:0,log:[],certReport:'',card:null,cardText:'',perYears:5,flash:''};
+  log(null,0,`Each player plants 20 ha of a smallholder coffee farm. Next to it sits the baseline: the same farm where nothing is done. ${len} years, Performance Certifications every 5 years.`);
+  render();
+};
+A.startTurn=()=>{G.pass=false;render();};
+A.pickDesign=k=>{cp().design=k;render();};
+A.plant=()=>{const p=cp();if(!p.design)return;p.cash=-PLANT_COST;G.step='per';G.perYears=5;
+  log(p.i,0,`planted ${DESIGNS[p.design].name} for ${money(PLANT_COST)}. A VVB confirms the planting: Design Certification granted.`);render();};
+function perQty(p,n){return Math.max(0,Math.round(netModel(p,G.year+n)-netModel(p,G.year)));}
+A.setPer=(_,v)=>{G.perYears=+v;updatePerCalc();};
+A.issuePER=()=>{
+  const p=cp(),n=Math.min(G.perYears,G.end-G.year),q=n>0?perQty(p,n):0,bf=Math.round(q*G.bufferRate),sell=q-bf;
+  if(q>0){p.perOut+=sell;p.perBuf+=bf;p.perEver+=sell;p.cash+=sell*PER_PRICE;
+    log(p.i,G.year,`issued ${fmt(q)} PERs for ${n} year${n>1?'s':''} of modelled net removals: sold ${fmt(sell)} forward for ${money(sell*PER_PRICE)}, ${fmt(bf)} to the buffer.`);}
+  else log(p.i,G.year,'issued no PERs.');
+  p.hist[p.hist.length-1].U=units(p);
+  if(G.phase==='setup'){if(G.cur<G.n-1){G.cur++;G.step='design';G.pass=true;}else startRound(1);}
+  else G.step='turnEnd';
+  render();
+};
+function startRound(y){
+  G.phase='play';G.year=y;G.mods=baseMods();
+  G.order=Array.from({length:G.n},(_,k)=>(k+y-1)%G.n);G.oi=0;G.cur=G.order[0];
+  drawMacro();
+  while(G.contracts.length<3)addContract();
+  addContract();
+  G.step='macro';G.pass=false;G.card=null;G.certReport='';
+}
+A.beginRound=()=>{G.step='actions';G.pass=true;resetTurn();render();};
+function resetTurn(){const p=cp();p.rain=0;G.card=null;G.cardText='';G.certReport='';}
+A.toggleMaint=()=>{const p=cp();p.maint=!p.maint;render();};
+A.toggleFarmer=()=>{const p=cp();p.farmer=!p.farmer;render();};
+A.firebreak=()=>{const p=cp();if(p.firebreak)return;p.firebreak=true;p.cash-=FIREBREAK_COST;log(p.i,G.year,`built fire breaks for ${money(FIREBREAK_COST)}.`);render();};
+A.draw=()=>{
+  const p=cp();
+  if(p.maint)p.cash-=MAINT_COST*G.mods.maintMult;
+  if(p.farmer)p.cash-=FARMER_COST;
+  const c=drawMicro();G.card=c;G.cardText=c.run(p);
+  if(c.choice&&p.perOut>0)G.step='choice';
+  else{G.step='card';log(p.i,G.year,`farm card ${c.t}: ${G.cardText}`,c.id==='quiet'||c.id==='rain'||c.id==='coop'?'':'');}
+  render();
+};
+A.choose=v=>{
+  const p=cp();
+  if(v==='explain'){p.vpAdj+=1;G.cardText='You explained that PERs are planned removals. They can be transferred, but only retired once a Performance Certification has converted them into GS VERs. The buyer will wait. +1 VP.';
+    log(p.i,G.year,'explained to a buyer why PERs can’t be retired. +1 VP.','lesson');}
+  else{G.cardText='The Impact Registry refuses: PERs can’t be retired. The buyer is embarrassed and blames you. No points.';
+    log(p.i,G.year,'tried to retire PERs for a buyer. The registry refused.');}
+  G.step='card';render();
+};
+A.grow=()=>{
+  const p=cp(),y=G.year,m=G.mods,before=net(p);
+  const inc=model(p,y)-model(p,y-1);
+  let f=(p.maint?rnd(0.96,1.12):rnd(0.78,1.0))*m.growth+p.rain;
+  if(p.boost>0){f+=0.25;p.boost--;}
+  p.T+=inc*f;
+  if(m.boom&&!p.farmer){p.T*=0.95;log(p.i,y,'Coffee boom: farmers thinned 5% of the shade trees.');}
+  p.B=Math.max(0,p.B+REGEN+m.regenAdj);
+  if(p.farmer)p.farmerYears++;
+  if(p.cash<0)p.cash+=p.cash*m.interest;
+  p.hist.push({y,N:net(p),U:units(p)});
+  const d=net(p)-before;
+  log(p.i,y,`Growth: net removals ${d>=0?'+':''}${fmt(d)} t, now ${fmt(net(p))} t (project ${fmt(p.E+p.T)} t − baseline ${fmt(p.B)} t${p.leak?` − leakage ${fmt(p.leak)} t`:''}).`);
+  if(y%5===0||y===G.end)certify(p);else G.step='turnEnd';
+  render();
+};
+function certify(p){
+  const y=G.year;let fee=CERT_FEE;if(p.certDisc){fee/=2;p.certDisc=false;}
+  p.cash-=fee;
+  const M=net(p),K=Math.max(0,M-p.C),out=p.perOut+p.perBuf,x=Math.min(K,out);
+  const L=[`VVB fee ${money(fee)}. Verified net removals: <b>${fmt(M)} t</b>.`];
+  if(x>=1){const xb=out?Math.round(x*p.perOut/out):0,xf=Math.round(x)-xb;
+    p.perOut-=xb;p.perBuf-=xf;p.C+=xb+xf;p.bufVER+=xf;p.delivered+=xb;
+    L.push(`${fmt(xb+xf)} PERs converted into GS VERs (${fmt(xb)} for your forward buyers).`);}
+  const ex=Math.round(K-x);
+  if(ex>=1){const bf=Math.round(ex*G.bufferRate),n=ex-bf;p.C+=ex;p.bufVER+=bf;p.avail+=n;
+    L.push(`${fmt(n)} new GS VERs issued to you, ${fmt(bf)} to the buffer.`);}
+  if(K<1&&out<1)L.push('Nothing new to credit.');
+  G.certReport=L.join(' ');
+  log(p.i,y,'Performance Certification. '+G.certReport.replace(/<\/?b>/g,''),'good');
+  checkPerf(p,true);
+}
+function checkPerf(p,atCert){
+  const y=G.year,rev=Math.max(0,p.C-net(p));
+  p.short=Math.round(p.perOut+p.perBuf+rev);
+  if(p.short>=1){
+    if(atCert){
+      p.shortCount++;
+      if(p.shortSince!==null&&y-p.shortSince>=5&&!p.nonconf){p.nonconf=true;log(p.i,y,'The shortfall has lasted 5 years. Gold Standard opens a non-conformity process: −10 VP.','bad');}
+      if(p.shortSince===null)p.shortSince=y;
+      log(p.i,y,`Performance shortfall: ${fmt(units(p))} units issued but only ${fmt(net(p))} t net removals. ${fmt(p.short)} t short. −3 VP. No new issuance until fixed.`,'bad');
+    }
+    G.step='shortfall';
+  } else {
+    if(p.shortSince!==null)log(p.i,y,'Carbon performance restored. Buffer units on hold are released.','good');
+    p.shortSince=null;p.short=0;
+    G.step=y<G.end?'per':'turnEnd';G.perYears=Math.min(5,G.end-y);
+  }
+  p.hist[p.hist.length-1].U=units(p);
+}
+A.remedy=kind=>{
+  const p=cp();let n=kind==='own'?Math.min(p.avail,p.short):p.short;if(n<1)return;const tot=n;
+  if(kind==='own')p.avail-=n;else p.cash-=n*EXT_PRICE;
+  const a1=Math.min(n,p.perOut);p.perOut-=a1;p.delivered+=a1;n-=a1;
+  const a2=Math.min(n,p.perBuf);p.perBuf-=a2;n-=a2;if(kind==='own')p.bufVER+=a2;
+  p.C-=n;
+  log(p.i,G.year,kind==='own'?`covered ${fmt(tot)} t of the shortfall with their own unsold GS VERs.`:`bought ${fmt(tot)} GS VERs from other Gold Standard projects for ${money(tot*EXT_PRICE)} to cover the shortfall.`);
+  checkPerf(p,false);render();
+};
+A.replant=()=>{const p=cp();p.cash-=REPLANT_COST;p.boost=3;G.step='turnEnd';
+  log(p.i,G.year,`chose to replant for ${money(REPLANT_COST)}. The shortfall stays open until the next Performance Certification.`);render();};
+A.acceptNC=()=>{const p=cp();if(!p.nonconf){p.nonconf=true;log(p.i,G.year,'left the shortfall unresolved. Non-conformity: −10 VP.','bad');}G.step='turnEnd';render();};
+function cantSign(p,c){
+  if(G.mods.expose&&p.shortCount>0)return 'Blocked this year: after the exposé, buyers avoid projects with a shortfall history.';
+  if(c.req==='farmer3'&&p.farmerYears<3)return `Needs 3+ years of farmer programme (you have ${p.farmerYears}).`;
+  if(p.avail<c.qty)return `Needs ${fmt(c.qty)} GS VERs. You have ${fmt(p.avail)}.`;
+  return '';
+}
+const canTrade=()=>G.phase==='play'&&(G.step==='actions'||G.step==='turnEnd')&&!G.pass;
+A.sign=id=>{
+  const p=cp(),c=G.contracts.find(x=>x.id==id);if(!c||!canTrade())return;
+  const why=cantSign(p,c);if(why){G.flash=why;render();return;}
+  const earn=c.qty*(c.price-G.mods.levy);
+  p.avail-=c.qty;p.retired+=c.qty;p.cash+=earn;G.contracts=G.contracts.filter(x=>x!==c);
+  log(p.i,G.year,`retired ${fmt(c.qty)} GS VERs in the Impact Registry for ${c.buyer} (${c.purpose.toLowerCase()}) and earned ${money(earn)}.`,'good');
+  render();
+};
+A.sell=()=>{
+  const p=cp(),el=$('#sellq'),q=Math.floor(+(el&&el.value)||0);
+  if(!canTrade())return;
+  if(q<=0||q>p.avail){G.flash=`Enter an amount between 1 and ${fmt(p.avail)}.`;render();return;}
+  const price=G.price-5;p.avail-=q;p.sold+=q;p.cash+=q*price;
+  log(p.i,G.year,`sold ${fmt(q)} GS VERs to a broker at $${price}/t. They stay active until someone retires them.`);render();
+};
+A.endTurn=()=>{
+  G.oi++;
+  if(G.oi<G.n){G.cur=G.order[G.oi];G.step='actions';G.pass=true;resetTurn();}
+  else if(G.year>=G.end)finish();
+  else startRound(G.year+1);
+  render();window.scrollTo({top:0,behavior:'smooth'});
+};
+function vp(p,final){
+  const parts={cash:Math.floor(p.cash/2000),retired:Math.floor(p.retired/50),climate:Math.floor(Math.max(0,net(p))/100),
+    sdg:Math.floor(p.farmerYears/2),penalty:-3*p.shortCount-(p.nonconf?10:0)-(final&&p.perOut>0?Math.ceil(p.perOut/50):0),bonus:p.vpAdj};
+  parts.total=parts.cash+parts.retired+parts.climate+parts.sdg+parts.penalty+parts.bonus;return parts;
+}
+function finish(){G.phase='end';G.step='end';log(null,G.year,'The game is over. Final scores are in.');}
+
+/* ---------- Rendering ---------- */
+function render(){
+  const app=$('#app');
+  if(G.phase==='lobby'){app.innerHTML=lobbyHtml();$('#pass').hidden=true;return;}
+  app.innerHTML=`${trackHtml()}
+  <div class="table">
+    <div class="a-macro">${macroHtml()}</div>
+    <div class="a-board">${G.phase==='end'?finalHtml():boardHtml()}</div>
+    <div class="a-market">${marketHtml()}</div>
+  </div>
+  <section class="players">${G.players.map(pcardHtml).join('')}</section>
+  <section class="panel"><h2>Logbook</h2><div class="log">${G.log.map(l=>`<div class="${l.kind}"><span class="y">${l.y===0?'Setup':'Year '+l.y}</span>${l.i!==null&&l.i!==undefined?`<span class="token" style="--pc:var(--p${l.i});width:11px;height:11px;margin-right:5px"></span><b>${esc(G.players[l.i].name)}</b> `:''}${l.text}</div>`).join('')}</div></section>`;
+  const pass=$('#pass');
+  if(G.pass&&(G.phase==='setup'||G.phase==='play')){
+    const p=cp();pass.style.setProperty('--pc',`var(--p${p.i})`);
+    pass.innerHTML=`<div class="box"><span class="muted">${G.phase==='setup'?'Setup':'Year '+G.year}</span><h2>${esc(p.name)}’s turn</h2>
+      <p class="muted">Pass the device to ${esc(p.name)}.</p><div class="row" style="justify-content:center"><button class="primary" data-a="startTurn">Start turn</button></div></div>`;
+    pass.hidden=false;
+  } else pass.hidden=true;
+  G.flash='';
+}
+function lobbyHtml(){
+  return `<section class="panel lobby"><h2>Set up the table</h2>
+  <p>Each player runs their own 20 ha coffee agroforestry project under Gold Standard rules. Players take turns on this device. Highest victory points after the last year wins.</p>
+  <div class="row"><b style="width:120px">Players</b>${[2,3,4].map(n=>`<button aria-pressed="${G.nPlayers===n}" data-a="setN" data-v="${n}">${n}</button>`).join('')}</div>
+  <div class="names">${Array.from({length:G.nPlayers},(_,i)=>`<label><span class="token" style="--pc:var(--p${i})"></span><input type="text" maxlength="18" aria-label="Name of player ${i+1}" data-a="setName" data-v="${i}" value="${esc(G.names[i]||'')}"></label>`).join('')}</div>
+  <div class="row"><b style="width:120px">Game length</b>${[10,15,20].map(n=>`<button aria-pressed="${G.len===n}" data-a="setLen" data-v="${n}">${n} years</button>`).join('')}</div>
+  <p class="small muted">A 15-year game with 3 players takes about 30–40 minutes.</p>
+  <div class="row"><button class="primary" data-a="startGame">Start game</button></div></section>`;
+}
+function trackHtml(){
+  let h='<nav class="track" aria-label="Year track">';
+  for(let y=0;y<=G.end;y++){
+    const cls=['space'];if(y>0&&(y%5===0||y===G.end))cls.push('cert');if(y<G.year)cls.push('past');if(y===G.year)cls.push('now');
+    h+=`<div class="${cls.join(' ')}"><div class="dot">${y}</div>${y>0&&y%5===0?'cert':''}</div>`;
+  }
+  return h+'</nav>';
+}
+function macroHtml(){
+  if(G.phase==='setup')return `<div class="card world n"><span class="kind">Setup</span><h3>Plant and pre-finance</h3><p>Each player picks a planting design, pays $8,000, and may issue PERs for up to 5 years of modelled net removals. World cards start in year 1.</p></div>`;
+  const m=G.macro;if(!m)return '';
+  const begin=G.phase==='play'&&G.step==='macro'?`<div class="row"><button class="primary" data-a="beginRound">Start year ${G.year}: ${esc(G.players[G.order[0]].name)} goes first</button></div>`:'';
+  return `<div class="card world ${m.k}${G.step==='macro'?' reveal':''}"><span class="kind">World card, year ${G.year}</span><h3>${m.t}</h3><p>${m.x}</p>${begin}</div>`;
+}
+function marketHtml(){
+  if(G.phase==='setup')return `<section class="panel"><h2>Buyer contracts</h2><p class="muted">Contracts appear from year 1. Signing one means retiring GS VERs in the buyer’s name.</p></section>`;
+  const p=cp(),trade=canTrade()&&G.phase==='play';
+  let h=`<section class="panel"><h2>Buyer contracts</h2><p class="small muted">Retire GS VERs in the buyer’s name. First come, first served. Market price index: $${G.price}/t${G.mods.levy?`, levy $${G.mods.levy}/t this year`:''}.</p>`;
+  if(!G.contracts.length)h+='<p class="muted">No open contracts.</p>';
+  G.contracts.forEach(c=>{
+    const why=trade?cantSign(p,c):'';
+    h+=`<div class="contract"><div class="top"><span><span class="chip ${c.type}">${CTYPES[c.type].label}</span> <b>${esc(c.buyer)}</b></span><b class="price">${fmt(c.qty)} t × $${c.price}</b></div>
+      <div class="small muted">${c.purpose}.</div>
+      ${trade?`<div class="row" style="margin-top:6px"><button ${why?'disabled':''} data-a="sign" data-v="${c.id}">Retire ${fmt(c.qty)} GS VERs for ${esc(c.buyer)}</button></div>${why?`<div class="why">${why}</div>`:''}`:''}</div>`;
+  });
+  if(trade)h+=`<div class="contract"><b>Broker</b><div class="small muted">Sell GS VERs at $${G.price-5}/t. They stay active: someone else will retire them.</div>
+    <div class="row"><input id="sellq" type="number" min="1" max="${p.avail}" placeholder="t CO₂e" aria-label="Tonnes to sell" style="width:110px"><button ${p.avail>0?'':'disabled'} data-a="sell">Sell to broker</button></div></div>`;
+  return h+'</section>';
+}
+function cellsHtml(p,kind){
+  let s='';const d=p.design?DESIGNS[p.design]:null;
+  const fire=G.card&&G.card.id==='fire'&&cp()===p;
+  if(kind==='project'){
+    const frac=d?Math.min(1.2,p.T/(AREA*d.A*0.85)):0;
+    for(let i=0;i<24;i++){
+      let ch='🌿',size=15;
+      if(d&&G.phase!=='setup'||d&&G.step==='per'){
+        const j=frac*(0.8+0.4*((i*7)%11)/10);
+        if(G.year===0)ch=i%2?'🌱':'🌿';else{ch=j<0.06?'🌱':'🌳';size=Math.round(14+Math.min(1,j)*20);}
+      }
+      if(fire&&i%3===0)ch='🔥';
+      s+=`<span style="font-size:${size}px">${ch}</span>`;
+    }
+  } else {
+    const regen=Math.max(0,Math.min(24,Math.round((p.B-EX0)/(AREA*0.6))));
+    for(let i=0;i<24;i++){const isTree=((i*7)%24)<regen;s+=`<span style="font-size:${isTree?20:15}px">${isTree?'🌳':'🌿'}</span>`;}
+  }
+  return s;
+}
+function boardHtml(){
+  const p=cp(),d=p.design?DESIGNS[p.design]:null,N=net(p),v=vp(p,false);
+  return `<section class="panel board" style="--pc:var(--p${p.i})">
+    <div class="board-head"><span class="token"></span><h2>${esc(p.name)}</h2><span class="muted">${d?d.name:'Choosing a design'}</span></div>
+    <div class="plots">
+      <div class="plot"><h3>Project farm</h3><div class="cells" aria-hidden="true">${cellsHtml(p,'project')}</div><div class="pnum">${fmt(p.E+p.T)} t</div></div>
+      <div class="op" aria-hidden="true">−</div>
+      <div class="plot"><h3>Baseline: same farm, nothing done</h3><div class="cells" aria-hidden="true">${cellsHtml(p,'baseline')}</div><div class="pnum">${fmt(p.B)} t</div></div>
+      <div class="op eq" aria-hidden="true">=</div>
+      <div class="netbox"><div class="v">${fmt(N)} t</div><div class="k">net removals${p.leak?`, after ${fmt(p.leak)} t leakage`:''}</div></div>
+    </div>
+    <div class="tokens">
+      <div class="tok"><div class="v">${money(p.cash)}</div><div class="k">Cash</div></div>
+      <div class="tok per"><div class="v">${fmt(p.perOut+p.perBuf)}</div><div class="k">PERs not converted</div></div>
+      <div class="tok ver"><div class="v">${fmt(p.avail)}</div><div class="k">Your GS VERs</div></div>
+      <div class="tok buf"><div class="v">${fmt(p.bufVER+p.perBuf)}</div><div class="k">In buffer</div></div>
+      <div class="tok ret"><div class="v">${fmt(p.retired)}</div><div class="k">Retired</div></div>
+      <div class="tok"><div class="v">${v.total}</div><div class="k">Victory points</div></div>
+    </div>
+    ${d?miniChart(p):''}
+    <div class="controls">${G.flash?`<div class="flash">${G.flash}</div>`:''}${controlsHtml(p)}</div>
+  </section>`;
+}
+function miniChart(p){
+  const W=520,H=150,L=44,R=8,T=8,B=22,end=G.end;
+  const ys=[netModel(p,end)*1.1,...p.hist.map(h=>Math.max(h.N,h.U)*1.1),100];
+  if(G.step==='per')ys.push((units(p)+perQty(p,Math.min(G.perYears,end-G.year)))*1.1);
+  const yM=Math.ceil(Math.max(...ys)/500)*500,x=t=>L+(W-L-R)*t/end,y=v=>H-B-(H-T-B)*Math.max(0,v)/yM;
+  let g='';
+  for(let i=0;i<=2;i++){const v=yM*i/2;g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${fmt(v)}</text>`;}
+  for(let t=0;t<=end;t+=5)g+=`<text x="${x(t)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">yr ${t}</text>`;
+  let mp='';for(let t=0;t<=end;t+=0.5)mp+=(t?'L':'M')+x(t)+','+y(netModel(p,t));
+  g+=`<path d="${mp}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  let up=`M${x(0)},${y(p.hist[0].U)}`;p.hist.forEach((h,i)=>{if(i)up+=`H${x(h.y)}V${y(h.U)}`;});
+  g+=`<path d="${up}" fill="none" stroke="var(--cherry)" stroke-width="2.2"/>`;
+  g+=`<path d="${p.hist.map((h,i)=>(i?'L':'M')+x(h.y)+','+y(h.N)).join('')}" fill="none" stroke="var(--canopy)" stroke-width="2.6"/>`;
+  return `<svg class="mini" viewBox="0 0 ${W} ${H}" role="img" aria-label="Net removals versus units issued">${g}</svg>
+  <div class="legend"><span><i style="border-color:var(--canopy)"></i>Net removals (project − baseline)</span><span><i style="border-color:var(--cherry)"></i>Units issued (GS VERs + PERs)</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>Modelled net removals</span></div>`;
+}
+function cardHtml(){
+  const c=G.card;if(!c)return '';
+  return `<div class="card farm reveal" style="margin-bottom:10px"><span class="kind">Farm card</span><h3>${c.t}</h3><p>${G.cardText}</p></div>`;
+}
+function controlsHtml(p){
+  const y=G.year,s=G.step;
+  if(G.pass)return '<p class="muted">Waiting for the player to start their turn.</p>';
+  if(s==='design')return `<h3>Choose your planting design</h3>
+    <div class="designs">${Object.entries(DESIGNS).map(([k,d])=>`<button class="design" aria-pressed="${p.design===k}" data-a="pickDesign" data-v="${k}"><b>${d.name}</b>${d.desc}
+      <div class="small muted">Modelled net removals: ${fmt(AREA*d.A*Math.pow(1-Math.exp(-d.k*5),d.c)-REGEN*5)} t by year 5, ${fmt(AREA*d.A*Math.pow(1-Math.exp(-d.k*G.end),d.c)-REGEN*G.end)} t by year ${G.end}</div></button>`).join('')}</div>
+    <button class="primary" ${p.design?'':'disabled'} data-a="plant">Plant 20 ha for ${money(PLANT_COST)}</button>`;
+  if(s==='per'){
+    const mx=Math.min(5,G.end-y);if(G.perYears>mx)G.perYears=mx;
+    setTimeout(updatePerCalc,0);
+    return `${G.certReport?`<div class="report">${G.certReport}</div>`:''}<h3>${y===0?'Issue PERs to pre-finance planting?':'Issue new PERs for the next period?'}</h3>
+      <p class="small">PERs cover modelled net removals (tree growth minus expected baseline regrowth). 20% go to the buffer, the rest sell forward at $${PER_PRICE}/t. At the next Performance Certification they must be backed by verified net removals.</p>
+      <label for="py">PERs for: <b id="pyv"></b></label>
+      <input id="py" type="range" min="0" max="${mx}" step="1" value="${G.perYears}" data-a="setPer">
+      <div class="calc" id="pcalc"></div>
+      <div class="row"><button class="primary" data-a="issuePER">Confirm</button></div>`;
+  }
+  if(s==='macro')return `<p class="muted">Read the world card, then start the year.</p>`;
+  if(s==='actions'){
+    const mc=MAINT_COST*G.mods.maintMult;
+    return `<h3>Year ${y}: your decisions</h3>
+    <div class="stack">
+      <button class="toggle-btn" aria-pressed="${p.maint}" data-a="toggleMaint"><b>${p.maint?'✓ ':''}Maintain the plots</b> · ${money(mc)} this year. Better survival, halves drought and pest damage, stops cattle damage.</button>
+      <button class="toggle-btn" aria-pressed="${p.farmer}" data-a="toggleFarmer"><b>${p.farmer?'✓ ':''}Farmer programme</b> · ${money(FARMER_COST)} this year. Payments and training: prevents dropouts, theft, leakage and thinning. Counts towards SDG contracts and points (${p.farmerYears} years so far).</button>
+      <button class="toggle-btn" ${p.firebreak?'disabled':''} data-a="firebreak"><b>${p.firebreak?'✓ Fire breaks built':'Build fire breaks'}</b>${p.firebreak?'':` · ${money(FIREBREAK_COST)} once. Cuts fire damage from 25% to 8% for the rest of the game.`}</button>
+    </div>
+    <p class="small muted">Maintenance and the farmer programme are paid when you draw. You can sign contracts now or after growing.</p>
+    <div class="row"><button class="primary" data-a="draw">Draw farm card</button></div>`;
+  }
+  if(s==='choice')return `${cardHtml()}<div class="stack"><button data-a="choose" data-v="explain">Explain that PERs can’t be retired yet</button><button data-a="choose" data-v="try">Try to retire the PERs for them</button></div>`;
+  if(s==='card')return `${cardHtml()}<div class="row"><button class="primary" data-a="grow">Grow the trees for year ${y}${y%5===0||y===G.end?' and certify':''}</button></div>`;
+  if(s==='shortfall'){
+    const own=Math.min(p.avail,p.short);
+    return `${G.certReport?`<div class="report">${G.certReport}</div>`:''}<h3 class="bad">Performance shortfall: ${fmt(p.short)} t</h3>
+      <p class="small">Units issued (${fmt(units(p))}) exceed verified net removals (${fmt(net(p))} t). No new PERs or GS VERs until this is fixed.</p>
+      <div class="stack">
+        <button ${own?'':'disabled'} data-a="remedy" data-v="own">Use ${fmt(own)} of your own unsold GS VERs${own?'':' (you have none)'}</button>
+        <button data-a="remedy" data-v="ext">Buy ${fmt(p.short)} GS VERs from other Gold Standard projects for ${money(p.short*EXT_PRICE)}</button>
+        ${y<G.end?`<button data-a="replant">Replant for ${money(REPLANT_COST)} and recover by year ${Math.min(G.end,y+5)}</button>`:`<button data-a="acceptNC">Leave the shortfall unresolved (non-conformity, −10 VP)</button>`}
+      </div>`;
+  }
+  if(s==='turnEnd'){
+    const last=p.hist[p.hist.length-1],prev=p.hist[p.hist.length-2];
+    return `${G.card?cardHtml():''}${G.certReport?`<div class="report">${G.certReport}</div>`:''}
+      <p>Net removals this year: <b>${prev?(last.N-prev.N>=0?'+':'')+fmt(last.N-prev.N):''} t</b>${p.short?` <span class="bad">· shortfall of ${fmt(p.short)} t still open</span>`:''}.</p>
+      <p class="small muted">Sign contracts or sell to the broker now if you have GS VERs, then end your turn.</p>
+      <div class="row"><button class="primary" data-a="endTurn">End turn</button></div>`;
+  }
+  return '';
+}
+function updatePerCalc(){
+  const el=$('#pcalc');if(!el)return;
+  const p=cp(),n=G.perYears,q=n?perQty(p,n):0,bf=Math.round(q*G.bufferRate),sell=q-bf;
+  $('#pyv').textContent=n?`${n} year${n>1?'s':''} (years ${G.year+1}–${G.year+n})`:'none';
+  el.innerHTML=`${G.year?`<div><span>Net removals now vs model</span><b>${fmt(net(p))} vs ${fmt(netModel(p,G.year))} t</b></div>`:''}
+    <div><span>Modelled net removals in that period</span><b>${fmt(q)} t</b></div>
+    <div><span>To buffer (${pct(G.bufferRate)})</span><b>${fmt(bf)}</b></div>
+    <div><span>Sold forward at $${PER_PRICE}</span><b>${fmt(sell)} → ${money(sell*PER_PRICE)}</b></div>
+    <div><span>Cash afterwards</span><b>${money(p.cash+sell*PER_PRICE)}</b></div>`;
+}
+function pcardHtml(p){
+  const v=vp(p,G.phase==='end'),active=G.phase!=='end'&&cp()===p;
+  return `<div class="pcard${active?' active':''}" style="--pc:var(--p${p.i})"><div class="nm"><b>${esc(p.name)}</b><span class="vp">${v.total} VP</span></div>
+    <div class="small muted">${p.design?DESIGNS[p.design].short:'No design yet'}${p.firebreak?' · fire breaks':''}${p.short?' · <span class="bad">shortfall</span>':''}</div>
+    <dl><dt>Net removals</dt><dd>${fmt(net(p))} t</dd><dt>Units issued</dt><dd>${fmt(units(p))}</dd><dt>GS VERs held</dt><dd>${fmt(p.avail)}</dd>
+    <dt>Retired for buyers</dt><dd>${fmt(p.retired)}</dd><dt>Cash</dt><dd>${money(p.cash)}</dd></dl></div>`;
+}
+function finalHtml(){
+  const rows=G.players.map(p=>({p,v:vp(p,true)})).sort((a,b)=>b.v.total-a.v.total);
+  const w=rows[0];
+  return `<section class="panel board" style="--pc:var(--p${w.p.i})"><h2>${esc(w.p.name)} wins with ${w.v.total} VP</h2>
+  <p class="muted">${esc(DESIGNS[w.p.design].name)}</p>
+  <div class="finalwrap"><table class="final"><thead><tr><th>Player</th><th>Cash</th><th>Retired</th><th>Net removals</th><th>Farmer prog.</th><th>Penalties</th><th>Bonus</th><th>Total</th></tr></thead>
+  <tbody>${rows.map(({p,v})=>`<tr><td><span class="token" style="--pc:var(--p${p.i});width:11px;height:11px"></span> ${esc(p.name)}</td><td>${v.cash}</td><td>${v.retired}</td><td>${v.climate}</td><td>${v.sdg}</td><td>${v.penalty}</td><td>${v.bonus}</td><td><b>${v.total}</b></td></tr>`).join('')}</tbody></table></div>
+  <h3 style="margin-top:14px">Talking points</h3>
+  <ul class="small">${rows.map(({p})=>`<li><b>${esc(p.name)}</b>: ${fmt(net(p))} t net removals (project ${fmt(p.E+p.T)} − baseline ${fmt(p.B)}${p.leak?` − leakage ${fmt(p.leak)}`:''}), ${p.shortCount?`${p.shortCount} shortfall${p.shortCount>1?'s':''}`:'no shortfalls'}, ${fmt(p.retired)} t retired, ${fmt(p.sold)} t sold to brokers${p.perOut?`, ${fmt(p.perOut)} PERs never converted`:''}.</li>`).join('')}</ul>
+  <div class="row"><button class="primary" data-a="newGame">Play again</button></div></section>`;
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||el.disabled||el.tagName==='INPUT')return;const f=A[el.dataset.a];if(f){if(G.phase!=='lobby')G.flash='';f(el.dataset.v,el);}});
+document.addEventListener('input',e=>{const el=e.target.closest('[data-a]');if(!el||el.tagName!=='INPUT')return;const f=A[el.dataset.a];if(f)f(el.dataset.v,el.value);});
+window.CGB={A,get G(){return G;}};
+render();
+})();
+</script>
+</body>
+</html>
